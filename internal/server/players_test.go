@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,15 +15,7 @@ import (
 func seedManualPlayer(t *testing.T, db *sqlx.DB, firstName, lastName string) int64 {
 	t.Helper()
 
-	res, err := db.Exec(`INSERT INTO players (internal_id, first_name, last_name) VALUES (?, ?, ?)`, "manual-"+firstName, firstName, lastName)
-	if err != nil {
-		t.Fatalf("seed manual player: %v", err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		t.Fatalf("seed manual player id: %v", err)
-	}
-	return id
+	return insertPlayer(t, db, sql.NullString{}, sql.NullString{String: "manual-" + firstName, Valid: true}, firstName, lastName)
 }
 
 func seedSnapshot(t *testing.T, db *sqlx.DB, playerID int64, ratingType string, value int, capturedAt string) {
@@ -71,6 +64,17 @@ func TestRoster_OmitsPlayersWithoutNUID(t *testing.T) {
 	}
 }
 
+type playerSummaryRow struct {
+	ID           int64   `json:"id"`
+	NUID         *string `json:"nuid"`
+	FirstName    string  `json:"first_name"`
+	LastName     string  `json:"last_name"`
+	LatestTTR    *int    `json:"latest_ttr"`
+	LatestTTRAt  *string `json:"latest_ttr_at"`
+	LatestQTTR   *int    `json:"latest_qttr"`
+	LatestQTTRAt *string `json:"latest_qttr_at"`
+}
+
 func TestPlayers_IncludesLatestSnapshotsAndNullsWhenAbsent(t *testing.T) {
 	db := testDB(t)
 	withHistory := seedPlayer(t, db, "has-history")
@@ -80,16 +84,7 @@ func TestPlayers_IncludesLatestSnapshotsAndNullsWhenAbsent(t *testing.T) {
 	noHistory := seedManualPlayer(t, db, "No", "History")
 	handler := server.New(db, testIngestionKey)
 
-	var players []struct {
-		ID           int64   `json:"id"`
-		NUID         *string `json:"nuid"`
-		FirstName    string  `json:"first_name"`
-		LastName     string  `json:"last_name"`
-		LatestTTR    *int    `json:"latest_ttr"`
-		LatestTTRAt  *string `json:"latest_ttr_at"`
-		LatestQTTR   *int    `json:"latest_qttr"`
-		LatestQTTRAt *string `json:"latest_qttr_at"`
-	}
+	var players []playerSummaryRow
 	rec := getJSON(t, handler, "/api/players", &players)
 
 	if rec.Code != http.StatusOK {
@@ -99,16 +94,7 @@ func TestPlayers_IncludesLatestSnapshotsAndNullsWhenAbsent(t *testing.T) {
 		t.Fatalf("players = %+v, want 2 entries", players)
 	}
 
-	var withHistoryEntry, noHistoryEntry *struct {
-		ID           int64   `json:"id"`
-		NUID         *string `json:"nuid"`
-		FirstName    string  `json:"first_name"`
-		LastName     string  `json:"last_name"`
-		LatestTTR    *int    `json:"latest_ttr"`
-		LatestTTRAt  *string `json:"latest_ttr_at"`
-		LatestQTTR   *int    `json:"latest_qttr"`
-		LatestQTTRAt *string `json:"latest_qttr_at"`
-	}
+	var withHistoryEntry, noHistoryEntry *playerSummaryRow
 	for i := range players {
 		switch players[i].ID {
 		case withHistory:

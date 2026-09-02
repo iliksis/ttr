@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,15 +17,7 @@ const testIngestionKey = "test-key"
 func seedPlayer(t *testing.T, db *sqlx.DB, nuid string) int64 {
 	t.Helper()
 
-	res, err := db.Exec(`INSERT INTO players (nuid, first_name, last_name) VALUES (?, ?, ?)`, nuid, "First", "Last")
-	if err != nil {
-		t.Fatalf("seed player: %v", err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		t.Fatalf("seed player id: %v", err)
-	}
-	return id
+	return insertPlayer(t, db, sql.NullString{String: nuid, Valid: true}, sql.NullString{}, "First", "Last")
 }
 
 func ingestRequest(t *testing.T, handler http.Handler, key string, body string) *httptest.ResponseRecorder {

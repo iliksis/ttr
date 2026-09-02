@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -22,6 +23,23 @@ func testDB(t *testing.T) *sqlx.DB {
 	t.Cleanup(func() { db.Close() })
 
 	return db
+}
+
+// insertPlayer inserts a row into players, leaving nuid or internalID unset
+// (NULL) when its Valid field is false.
+func insertPlayer(t *testing.T, db *sqlx.DB, nuid, internalID sql.NullString, firstName, lastName string) int64 {
+	t.Helper()
+
+	res, err := db.Exec(`INSERT INTO players (nuid, internal_id, first_name, last_name) VALUES (?, ?, ?, ?)`,
+		nuid, internalID, firstName, lastName)
+	if err != nil {
+		t.Fatalf("insert player: %v", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		t.Fatalf("insert player id: %v", err)
+	}
+	return id
 }
 
 func TestHealth_OK(t *testing.T) {
