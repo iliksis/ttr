@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/iliksis/ttr/internal/database"
+	"github.com/iliksis/ttr/internal/roster"
 	"github.com/iliksis/ttr/internal/server"
 	"github.com/joho/godotenv"
 )
@@ -27,9 +28,10 @@ func main() {
 		addr = ":8080"
 	}
 
-	// INGESTION_KEY is wired through for later ingestion-endpoint tickets;
-	// not read anywhere yet.
-	_ = os.Getenv("INGESTION_KEY")
+	ingestionKey := os.Getenv("INGESTION_KEY")
+	if ingestionKey == "" {
+		log.Fatal("INGESTION_KEY must be set")
+	}
 
 	db, err := database.Open(dbPath, database.Migrations)
 	if err != nil {
@@ -37,8 +39,12 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := roster.Seed(db, roster.Manual); err != nil {
+		log.Fatalf("seed roster: %v", err)
+	}
+
 	log.Printf("listening on %s", addr)
-	if err := http.ListenAndServe(addr, server.New()); err != nil {
+	if err := http.ListenAndServe(addr, server.New(db, ingestionKey)); err != nil {
 		log.Fatalf("server: %v", err)
 	}
 }
