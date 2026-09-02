@@ -3,15 +3,24 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/iliksis/ttr/internal/clubroster"
 	"github.com/iliksis/ttr/internal/database"
+	"github.com/iliksis/ttr/internal/mytt"
 	"github.com/iliksis/ttr/internal/roster"
 	"github.com/iliksis/ttr/internal/server"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 )
+
+// clubRosterSyncInterval is how often the club roster sync job re-fetches
+// the club's teams and players; the job also runs once at startup.
+const clubRosterSyncInterval = 24 * time.Hour
 
 func main() {
 	// Loads .env into the environment for local dev; a missing file is not
@@ -43,8 +52,38 @@ func main() {
 		log.Fatalf("seed roster: %v", err)
 	}
 
+	startClubRosterSync(db)
+
 	log.Printf("listening on %s", addr)
 	if err := http.ListenAndServe(addr, server.New(db, ingestionKey)); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+// startClubRosterSync launches the daily club roster sync job in the
+// background when CLUB_NUMBER is configured. It's opt-in: without a club
+// number there's no club to sync against, so the job is skipped entirely.
+func startClubRosterSync(db *sqlx.DB) {
+	clubNumber := os.Getenv("CLUB_NUMBER")
+	if clubNumber == "" {
+		log.Print("CLUB_NUMBER not set, skipping club roster sync")
+		return
+	}
+
+	organization := os.Getenv("CLUB_ORGANIZATION")
+	if organization == "" {
+		log.Print("CLUB_ORGANIZATION not set, skipping club roster sync")
+		return
+	}
+
+	client := mytt.NewClient("")
+
+	go clubroster.RunDaily(context.Background(), clubRosterSyncInterval, func(ctx context.Context) {
+		log.Printf("club roster sync: starting (club %s/%s)", organization, clubNumber)
+		if err := clubroster.Sync(ctx, db, client, clubNumber, organization); err != nil {
+			log.Printf("club roster sync: %v", err)
+			return
+		}
+		log.Print("club roster sync: done")
+	})
 }

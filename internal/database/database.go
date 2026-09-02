@@ -26,11 +26,16 @@ func mustSub(f embed.FS, dir string) fs.FS {
 	return sub
 }
 
+// busyTimeoutDSNSuffix makes concurrent writers (e.g. an Ingestion request
+// landing while the club roster sync job is mid-upsert) block and retry
+// instead of failing immediately with SQLITE_BUSY.
+const busyTimeoutDSNSuffix = "?_pragma=busy_timeout(5000)"
+
 // Open opens the SQLite database at path and runs migrations against it
 // before returning. A migration failure closes the connection and returns
 // a non-nil error.
 func Open(path string, migrations fs.FS) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite", path)
+	db, err := sqlx.Open("sqlite", path+busyTimeoutDSNSuffix)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
