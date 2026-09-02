@@ -54,9 +54,7 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		results = append(results, s.ingestEntry(e))
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ingestResponse{Results: results})
+	writeJSON(w, http.StatusOK, ingestResponse{Results: results})
 }
 
 func (s *Server) ingestEntry(e ingestEntry) ingestResult {

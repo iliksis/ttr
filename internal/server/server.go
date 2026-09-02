@@ -24,6 +24,9 @@ func New(db *sqlx.DB, ingestionKey string) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/health", handleHealth)
 	r.With(s.requireIngestionKey).Post("/api/ingest", s.handleIngest)
+	r.Get("/api/roster", s.handleRoster)
+	r.Get("/api/players", s.handlePlayers)
+	r.Get("/api/players/{id}/history", s.handlePlayerHistory)
 	return r
 }
 
