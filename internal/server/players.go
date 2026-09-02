@@ -15,16 +15,11 @@ type rosterEntry struct {
 // handleRoster returns every Player's nuid, omitting Players with none yet.
 // It's the minimal shape the Extension needs to drive Capture.
 func (s *Server) handleRoster(w http.ResponseWriter, r *http.Request) {
-	var roster []rosterEntry
-	err := s.db.Select(&roster, `
+	roster, ok := selectRows[rosterEntry](s, w, `
 		SELECT nuid FROM players WHERE nuid IS NOT NULL ORDER BY nuid
 	`)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "query failed")
+	if !ok {
 		return
-	}
-	if roster == nil {
-		roster = []rosterEntry{}
 	}
 
 	writeJSON(w, http.StatusOK, roster)
@@ -44,8 +39,7 @@ type playerSummary struct {
 // handlePlayers returns every Player along with their most recent Rating
 // snapshot of each type, null where none has been captured yet.
 func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request) {
-	var players []playerSummary
-	err := s.db.Select(&players, `
+	players, ok := selectRows[playerSummary](s, w, `
 		SELECT
 			p.id,
 			p.nuid,
@@ -68,12 +62,8 @@ func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request) {
 		)
 		ORDER BY p.id
 	`, ttrRatingType, qttrRatingType)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "query failed")
+	if !ok {
 		return
-	}
-	if players == nil {
-		players = []playerSummary{}
 	}
 
 	writeJSON(w, http.StatusOK, players)
@@ -109,21 +99,30 @@ func (s *Server) handlePlayerHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var history []historyEntry
-	err = s.db.Select(&history, `
+	history, ok := selectRows[historyEntry](s, w, `
 		SELECT value, captured_at FROM rating_snapshots
 		WHERE player_id = ? AND rating_type = ?
 		ORDER BY captured_at ASC
 	`, id, ratingType)
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "query failed")
+	if !ok {
 		return
-	}
-	if history == nil {
-		history = []historyEntry{}
 	}
 
 	writeJSON(w, http.StatusOK, history)
+}
+
+// selectRows runs a query expected to return zero or more rows, writing a
+// 500 JSON error and reporting ok=false on failure. A nil result is
+// normalized to an empty slice so callers always get valid JSON array output.
+func selectRows[T any](s *Server, w http.ResponseWriter, query string, args ...any) (rows []T, ok bool) {
+	if err := s.db.Select(&rows, query, args...); err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "query failed")
+		return nil, false
+	}
+	if rows == nil {
+		rows = []T{}
+	}
+	return rows, true
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
