@@ -1,4 +1,4 @@
-// Package clubroster automatically and repeatedly sources the club's roster
+// Package clubroster automatically and repeatedly fetches the club's roster
 // from mytischtennis.de, so Players don't have to be hand-entered to show
 // up in the system.
 package clubroster
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// teamsPlayersFetcher is the subset of *mytt.Client the Sync job needs,
+// teamsPlayersFetcher is the subset of *mytt.Client the Fetch job needs,
 // so tests can stub it without a real HTTP server.
 type teamsPlayersFetcher interface {
 	FetchTeams(ctx context.Context, clubNumber, organization string) ([]mytt.Team, error)
@@ -26,12 +26,12 @@ type teamsPlayersFetcher interface {
 // connections to mytischtennis.de.
 const maxConcurrentTeamFetches = 5
 
-// Sync fetches every team under clubNumber/organization and every player on
+// Fetch fetches every team under clubNumber/organization and every player on
 // each of those teams, unconditionally, then upserts each player into the
 // players table by internal_id. It never resolves nuid and never deletes a
 // Player: one absent from this run's fetch simply isn't touched, keeping
 // its row and Rating snapshot history intact.
-func Sync(ctx context.Context, db *sqlx.DB, client teamsPlayersFetcher, clubNumber, organization string) error {
+func Fetch(ctx context.Context, db *sqlx.DB, client teamsPlayersFetcher, clubNumber, organization string) error {
 	teams, err := client.FetchTeams(ctx, clubNumber, organization)
 	if err != nil {
 		return fmt.Errorf("fetch teams: %w", err)
@@ -61,7 +61,7 @@ func Sync(ctx context.Context, db *sqlx.DB, client teamsPlayersFetcher, clubNumb
 			// entry under the unique index, overwriting an unrelated
 			// player's name; skip rather than risk that.
 			if p.InternalID == "" {
-				log.Printf("club roster sync: skipping player with empty internal_id (team %s, %s %s)", team.TeamID, p.FirstName, p.LastName)
+				log.Printf("club roster fetch: skipping player with empty internal_id (team %s, %s %s)", team.TeamID, p.FirstName, p.LastName)
 				continue
 			}
 			if err := database.UpsertPlayer(db, "internal_id", p.InternalID, p.FirstName, p.LastName); err != nil {

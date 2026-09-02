@@ -18,9 +18,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// clubRosterSyncInterval is how often the club roster sync job re-fetches
+// clubRosterFetchInterval is how often the club roster fetch job re-fetches
 // the club's teams and players; the job also runs once at startup.
-const clubRosterSyncInterval = 24 * time.Hour
+const clubRosterFetchInterval = 24 * time.Hour
 
 func main() {
 	// Loads .env into the environment for local dev; a missing file is not
@@ -52,7 +52,7 @@ func main() {
 		log.Fatalf("seed roster: %v", err)
 	}
 
-	startClubRosterSync(db)
+	startClubRosterFetch(db)
 
 	log.Printf("listening on %s", addr)
 	if err := http.ListenAndServe(addr, server.New(db, ingestionKey)); err != nil {
@@ -60,34 +60,34 @@ func main() {
 	}
 }
 
-// startClubRosterSync launches the daily club roster sync job in the
+// startClubRosterFetch launches the daily club roster fetch job in the
 // background when CLUB_NUMBER is configured. It's opt-in: without a club
-// number there's no club to sync against, so the job is skipped entirely.
-func startClubRosterSync(db *sqlx.DB) {
+// number there's no club to fetch against, so the job is skipped entirely.
+func startClubRosterFetch(db *sqlx.DB) {
 	clubNumber := os.Getenv("CLUB_NUMBER")
 	organization := os.Getenv("CLUB_ORGANIZATION")
 
 	if clubNumber == "" && organization == "" {
-		log.Print("CLUB_NUMBER not set, skipping club roster sync")
+		log.Print("CLUB_NUMBER not set, skipping club roster fetch")
 		return
 	}
 	if clubNumber == "" {
-		log.Print("WARNING: CLUB_ORGANIZATION is set but CLUB_NUMBER is not; skipping club roster sync. Set both to enable it.")
+		log.Print("WARNING: CLUB_ORGANIZATION is set but CLUB_NUMBER is not; skipping club roster fetch. Set both to enable it.")
 		return
 	}
 	if organization == "" {
-		log.Print("WARNING: CLUB_NUMBER is set but CLUB_ORGANIZATION is not; skipping club roster sync. Set both to enable it.")
+		log.Print("WARNING: CLUB_NUMBER is set but CLUB_ORGANIZATION is not; skipping club roster fetch. Set both to enable it.")
 		return
 	}
 
 	client := mytt.NewClient("")
 
-	go clubroster.RunDaily(context.Background(), clubRosterSyncInterval, func(ctx context.Context) {
-		log.Printf("club roster sync: starting (club %s/%s)", organization, clubNumber)
-		if err := clubroster.Sync(ctx, db, client, clubNumber, organization); err != nil {
-			log.Printf("club roster sync: %v", err)
+	go clubroster.RunDaily(context.Background(), clubRosterFetchInterval, func(ctx context.Context) {
+		log.Printf("club roster fetch: starting (club %s/%s)", organization, clubNumber)
+		if err := clubroster.Fetch(ctx, db, client, clubNumber, organization); err != nil {
+			log.Printf("club roster fetch: %v", err)
 			return
 		}
-		log.Print("club roster sync: done")
+		log.Print("club roster fetch: done")
 	})
 }

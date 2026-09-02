@@ -27,7 +27,7 @@ func mustSub(f embed.FS, dir string) fs.FS {
 }
 
 // busyTimeoutDSNSuffix makes concurrent writers (e.g. an Ingestion request
-// landing while the club roster sync job is mid-upsert) block and retry
+// landing while the club roster fetch job is mid-upsert) block and retry
 // instead of failing immediately with SQLITE_BUSY.
 const busyTimeoutDSNSuffix = "?_pragma=busy_timeout(5000)"
 

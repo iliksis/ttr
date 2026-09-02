@@ -1,4 +1,4 @@
-package clubroster_test
+﻿package clubroster_test
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// fakeClient's FetchTeamPlayers is called concurrently by Sync, so its call
+// fakeClient's FetchTeamPlayers is called concurrently by Fetch, so its call
 // counters need a mutex.
 type fakeClient struct {
 	teams       []mytt.Team
@@ -65,7 +65,7 @@ func playerRow(t *testing.T, db *sqlx.DB, internalID string) (firstName, lastNam
 	return rows[0].FirstName, rows[0].LastName, true
 }
 
-func TestSync_CreatesPlayersFromEveryTeam(t *testing.T) {
+func TestFetch_CreatesPlayersFromEveryTeam(t *testing.T) {
 	db := testDB(t)
 	client := &fakeClient{
 		teams: []mytt.Team{{TeamID: "team-1"}, {TeamID: "team-2"}},
@@ -75,8 +75,8 @@ func TestSync_CreatesPlayersFromEveryTeam(t *testing.T) {
 		},
 	}
 
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() error = %v, want nil", err)
 	}
 
 	for id, wantFirst := range map[string]string{"NU1": "Ada", "NU2": "Alan"} {
@@ -98,7 +98,7 @@ func TestSync_CreatesPlayersFromEveryTeam(t *testing.T) {
 	}
 }
 
-func TestSync_IsIdempotent(t *testing.T) {
+func TestFetch_IsIdempotent(t *testing.T) {
 	db := testDB(t)
 	client := &fakeClient{
 		teams: []mytt.Team{{TeamID: "team-1"}},
@@ -107,11 +107,11 @@ func TestSync_IsIdempotent(t *testing.T) {
 		},
 	}
 
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() [1] error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() [1] error = %v, want nil", err)
 	}
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() [2] error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() [2] error = %v, want nil", err)
 	}
 
 	var count int
@@ -119,11 +119,11 @@ func TestSync_IsIdempotent(t *testing.T) {
 		t.Fatalf("count query error = %v, want nil", err)
 	}
 	if count != 1 {
-		t.Fatalf("player count = %d, want 1 after re-sync", count)
+		t.Fatalf("player count = %d, want 1 after re-fetch", count)
 	}
 }
 
-func TestSync_SkipsPlayersWithEmptyInternalID(t *testing.T) {
+func TestFetch_SkipsPlayersWithEmptyInternalID(t *testing.T) {
 	db := testDB(t)
 	client := &fakeClient{
 		teams: []mytt.Team{{TeamID: "team-1"}},
@@ -135,8 +135,8 @@ func TestSync_SkipsPlayersWithEmptyInternalID(t *testing.T) {
 		},
 	}
 
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() error = %v, want nil", err)
 	}
 
 	var emptyCount int
@@ -153,7 +153,7 @@ func TestSync_SkipsPlayersWithEmptyInternalID(t *testing.T) {
 	}
 }
 
-func TestSync_UpdatesNameOnReSync(t *testing.T) {
+func TestFetch_UpdatesNameOnRefetch(t *testing.T) {
 	db := testDB(t)
 	client := &fakeClient{
 		teams: []mytt.Team{{TeamID: "team-1"}},
@@ -161,25 +161,25 @@ func TestSync_UpdatesNameOnReSync(t *testing.T) {
 			"team-1": {{InternalID: "NU1", FirstName: "Ada", LastName: "Lovelace"}},
 		},
 	}
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() [1] error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() [1] error = %v, want nil", err)
 	}
 
 	client.teamPlayers["team-1"] = []mytt.Player{{InternalID: "NU1", FirstName: "Augusta", LastName: "Lovelace"}}
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() [2] error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() [2] error = %v, want nil", err)
 	}
 
 	first, _, found := playerRow(t, db, "NU1")
 	if !found {
-		t.Fatal("player NU1 not found after re-sync")
+		t.Fatal("player NU1 not found after re-fetch")
 	}
 	if first != "Augusta" {
 		t.Fatalf("first_name = %s, want Augusta (updated in place)", first)
 	}
 }
 
-func TestSync_PlayerAbsentFromNewRunKeepsRowAndHistory(t *testing.T) {
+func TestFetch_PlayerAbsentFromNewRunKeepsRowAndHistory(t *testing.T) {
 	db := testDB(t)
 	client := &fakeClient{
 		teams: []mytt.Team{{TeamID: "team-1"}},
@@ -190,8 +190,8 @@ func TestSync_PlayerAbsentFromNewRunKeepsRowAndHistory(t *testing.T) {
 			},
 		},
 	}
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() [1] error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() [1] error = %v, want nil", err)
 	}
 
 	var playerID int64
@@ -204,8 +204,8 @@ func TestSync_PlayerAbsentFromNewRunKeepsRowAndHistory(t *testing.T) {
 
 	// NU2 no longer appears on the team.
 	client.teamPlayers["team-1"] = []mytt.Player{{InternalID: "NU1", FirstName: "Ada", LastName: "Lovelace"}}
-	if err := clubroster.Sync(context.Background(), db, client, "13118", "WTTV"); err != nil {
-		t.Fatalf("Sync() [2] error = %v, want nil", err)
+	if err := clubroster.Fetch(context.Background(), db, client, "13118", "WTTV"); err != nil {
+		t.Fatalf("Fetch() [2] error = %v, want nil", err)
 	}
 
 	_, _, found := playerRow(t, db, "NU2")

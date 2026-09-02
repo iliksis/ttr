@@ -15,7 +15,7 @@ import (
 const DefaultBaseURL = "https://www.mytischtennis.de"
 
 // Team is one entry from GET /api/ttr/teams. Only the fields the club
-// roster sync needs are modeled; the upstream response carries more.
+// roster fetch needs are modeled; the upstream response carries more.
 type Team struct {
 	TeamID string `json:"team_id"`
 }
@@ -33,7 +33,7 @@ type response[T any] struct {
 }
 
 // requestTimeout bounds every upstream call so a stalled mytischtennis.de
-// connection can't wedge the daily sync job forever.
+// connection can't wedge the daily fetch job forever.
 const requestTimeout = 30 * time.Second
 
 // Client fetches teams and team rosters from mytischtennis.de.
