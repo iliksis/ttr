@@ -7,10 +7,10 @@ import (
 	"strconv"
 )
 
-//go:embed templates/home.html.tmpl
+//go:embed templates/layout.html.tmpl templates/home.html.tmpl
 var homeTemplateFS embed.FS
 
-var homeTemplate = template.Must(template.ParseFS(homeTemplateFS, "templates/home.html.tmpl"))
+var homeTemplate = template.Must(template.ParseFS(homeTemplateFS, "templates/layout.html.tmpl", "templates/home.html.tmpl"))
 
 // sortField names a column the roster table can be sorted by.
 type sortField string
@@ -109,7 +109,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	vm.SortLinks.QTTR = sortLink(field, dir, sortByQTTR)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := homeTemplate.Execute(w, vm); err != nil {
+	if err := homeTemplate.ExecuteTemplate(w, "layout", vm); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "render failed")
 	}
 }

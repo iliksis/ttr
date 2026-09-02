@@ -169,6 +169,31 @@ func TestHome_SortByNameWithoutExplicitDirDefaultsAscending(t *testing.T) {
 	assertIncreasing(t, namePositions(t, body, names...), names)
 }
 
+func TestHome_LinksSharedStylesheet(t *testing.T) {
+	db := testDB(t)
+	handler := server.New(db, testIngestionKey)
+
+	_, body := getHTML(t, handler, "/")
+
+	if !strings.Contains(body, `href="/static/styles.css"`) {
+		t.Fatalf("body missing stylesheet link, body = %s", body)
+	}
+}
+
+func TestStaticStylesheet_IsServed(t *testing.T) {
+	db := testDB(t)
+	handler := server.New(db, testIngestionKey)
+
+	rec, _ := getHTML(t, handler, "/static/styles.css")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "--color-primary") {
+		t.Fatalf("stylesheet body missing expected token, body = %s", rec.Body.String())
+	}
+}
+
 func TestHome_PlayerNameLinksToPlayerPage(t *testing.T) {
 	db := testDB(t)
 	id := seedManualPlayer(t, db, "Linked", "Player")

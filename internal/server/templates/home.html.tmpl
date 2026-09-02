@@ -1,28 +1,22 @@
-<!doctype html>
-<html lang="en">
-<head>
-	<meta charset="utf-8">
-	<title>TTR Roster</title>
-	<script src="/static/htmx.min.js"></script>
-</head>
-<body hx-boost="true">
-	<table id="roster">
-		<thead>
-			<tr>
-				<th><a href="{{.SortLinks.Name}}">Name</a></th>
-				<th><a href="{{.SortLinks.TTR}}">TTR</a></th>
-				<th><a href="{{.SortLinks.QTTR}}">QTTR</a></th>
-			</tr>
-		</thead>
-		<tbody>
-			{{range .Players}}
-			<tr>
-				<td><a href="/players/{{.ID}}">{{.Name}}</a></td>
-				<td>{{.TTRValue}}{{if .TTRDate}} ({{.TTRDate}}){{end}}</td>
-				<td>{{.QTTRValue}}{{if .QTTRDate}} ({{.QTTRDate}}){{end}}</td>
-			</tr>
-			{{end}}
-		</tbody>
-	</table>
-</body>
-</html>
+{{define "title"}}TTR Roster{{end}}
+{{define "content"}}
+<h1 class="page-title">Roster</h1>
+<table class="roster">
+	<thead>
+		<tr>
+			<th><a href="{{.SortLinks.Name}}">Name</a></th>
+			<th><a href="{{.SortLinks.TTR}}">TTR</a></th>
+			<th><a href="{{.SortLinks.QTTR}}">QTTR</a></th>
+		</tr>
+	</thead>
+	<tbody>
+		{{range .Players}}
+		<tr>
+			<td><a href="/players/{{.ID}}">{{.Name}}</a></td>
+			<td>{{.TTRValue}}{{if .TTRDate}} <span class="rating-date">({{.TTRDate}})</span>{{end}}</td>
+			<td>{{.QTTRValue}}{{if .QTTRDate}} <span class="rating-date">({{.QTTRDate}})</span>{{end}}</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
+{{end}}
