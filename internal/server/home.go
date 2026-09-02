@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"embed"
 	"html/template"
 	"net/http"
@@ -108,10 +109,14 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 	vm.SortLinks.TTR = sortLink(field, dir, sortByTTR)
 	vm.SortLinks.QTTR = sortLink(field, dir, sortByQTTR)
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := homeTemplate.ExecuteTemplate(w, "layout", vm); err != nil {
+	var buf bytes.Buffer
+	if err := homeTemplate.ExecuteTemplate(&buf, "layout", vm); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "render failed")
+		return
 	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(buf.Bytes())
 }
 
 // sortLink builds the href for a column header: clicking the already-active
