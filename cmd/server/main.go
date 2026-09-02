@@ -9,9 +9,14 @@ import (
 
 	"github.com/iliksis/ttr/internal/database"
 	"github.com/iliksis/ttr/internal/server"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Loads .env into the environment for local dev; a missing file is not
+	// an error, since production config comes from Fly secrets instead.
+	_ = godotenv.Load()
+
 	dbPath := os.Getenv("TTR_DB_PATH")
 	if dbPath == "" {
 		dbPath = "/data/ttr.db"
