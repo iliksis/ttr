@@ -1,0 +1,17 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{block "title" .}}TTR{{end}}</title>
+	<link rel="stylesheet" href="/static/styles.css">
+	<script src="/static/htmx.min.js"></script>
+</head>
+<body hx-boost="true">
+	<div class="page">
+		{{block "content" .}}{{end}}
+	</div>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,21 @@
+{{define "title"}}TTR Roster{{end}}
+{{define "content"}}
+<table class="roster">
+	<thead>
+		<tr>
+			<th><a href="{{.SortLinks.Name}}">Name</a></th>
+			<th><a href="{{.SortLinks.TTR}}">TTR</a></th>
+			<th><a href="{{.SortLinks.QTTR}}">QTTR</a></th>
+		</tr>
+	</thead>
+	<tbody>
+		{{range .Players}}
+		<tr>
+			<td><a href="/players/{{.ID}}">{{.Name}}</a></td>
+			<td>{{.TTRValue}}{{if .TTRDate}} <span class="rating-date">({{.TTRDate}})</span>{{end}}</td>
+			<td>{{.QTTRValue}}{{if .QTTRDate}} <span class="rating-date">({{.QTTRDate}})</span>{{end}}</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
+{{end}}

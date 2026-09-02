@@ -35,32 +35,36 @@ type playerSummary struct {
 	LatestQTTRAt *string `json:"latest_qttr_at" db:"latest_qttr_at"`
 }
 
+// playerSummaryQuery selects every Player joined with their most recent TTR
+// and QTTR Rating snapshot (null where none has been captured yet). It ends
+// in an unterminated ORDER BY so callers append their own ordering.
+const playerSummaryQuery = `
+	SELECT
+		p.id,
+		p.nuid,
+		p.first_name,
+		p.last_name,
+		ttr.value AS latest_ttr,
+		ttr.captured_at AS latest_ttr_at,
+		qttr.value AS latest_qttr,
+		qttr.captured_at AS latest_qttr_at
+	FROM players p
+	LEFT JOIN rating_snapshots ttr ON ttr.id = (
+		SELECT id FROM rating_snapshots
+		WHERE player_id = p.id AND rating_type = ?
+		ORDER BY captured_at DESC LIMIT 1
+	)
+	LEFT JOIN rating_snapshots qttr ON qttr.id = (
+		SELECT id FROM rating_snapshots
+		WHERE player_id = p.id AND rating_type = ?
+		ORDER BY captured_at DESC LIMIT 1
+	)
+	ORDER BY `
+
 // handlePlayers returns every Player along with their most recent Rating
 // snapshot of each type, null where none has been captured yet.
 func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request) {
-	players, ok := selectRows[playerSummary](s, w, `
-		SELECT
-			p.id,
-			p.nuid,
-			p.first_name,
-			p.last_name,
-			ttr.value AS latest_ttr,
-			ttr.captured_at AS latest_ttr_at,
-			qttr.value AS latest_qttr,
-			qttr.captured_at AS latest_qttr_at
-		FROM players p
-		LEFT JOIN rating_snapshots ttr ON ttr.id = (
-			SELECT id FROM rating_snapshots
-			WHERE player_id = p.id AND rating_type = ?
-			ORDER BY captured_at DESC LIMIT 1
-		)
-		LEFT JOIN rating_snapshots qttr ON qttr.id = (
-			SELECT id FROM rating_snapshots
-			WHERE player_id = p.id AND rating_type = ?
-			ORDER BY captured_at DESC LIMIT 1
-		)
-		ORDER BY p.id
-	`, ttrRatingType, qttrRatingType)
+	players, ok := selectRows[playerSummary](s, w, playerSummaryQuery+"p.id", ttrRatingType, qttrRatingType)
 	if !ok {
 		return
 	}

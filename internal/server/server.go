@@ -2,12 +2,17 @@
 package server
 
 import (
+	"embed"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jmoiron/sqlx"
 )
+
+//go:embed static
+var staticFS embed.FS
 
 // Server holds the dependencies TTR's HTTP handlers need.
 type Server struct {
@@ -21,8 +26,15 @@ type Server struct {
 func New(db *sqlx.DB, ingestionKey string) http.Handler {
 	s := &Server{db: db, ingestionKey: ingestionKey}
 
+	static, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic(err)
+	}
+
 	r := chi.NewRouter()
 	r.Get("/health", handleHealth)
+	r.Get("/", s.handleHome)
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	r.With(s.requireIngestionKey).Post("/api/ingest", s.handleIngest)
 	r.Get("/api/roster", s.handleRoster)
 	r.Get("/api/players", s.handlePlayers)
