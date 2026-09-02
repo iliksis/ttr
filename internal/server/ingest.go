@@ -7,12 +7,26 @@ import (
 	"net/http"
 )
 
+// ratingType distinguishes TTR from QTTR Rating snapshots.
+type ratingType string
+
 // ttrRatingType and qttrRatingType are the two Rating snapshot rows an
 // Ingestion entry splits into.
 const (
-	ttrRatingType  = "TTR"
-	qttrRatingType = "QTTR"
+	ttrRatingType  ratingType = "TTR"
+	qttrRatingType ratingType = "QTTR"
 )
+
+// parseRatingType validates a rating_type query/body value, reporting
+// whether it names one of the two known Rating types.
+func parseRatingType(s string) (ratingType, bool) {
+	switch ratingType(s) {
+	case ttrRatingType, qttrRatingType:
+		return ratingType(s), true
+	default:
+		return "", false
+	}
+}
 
 // Per-item status values in an Ingestion response.
 const (
@@ -54,9 +68,7 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		results = append(results, s.ingestEntry(e))
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(ingestResponse{Results: results})
+	writeJSON(w, http.StatusOK, ingestResponse{Results: results})
 }
 
 func (s *Server) ingestEntry(e ingestEntry) ingestResult {
@@ -79,11 +91,11 @@ func (s *Server) ingestEntry(e ingestEntry) ingestResult {
 // insertSnapshot stores one Rating snapshot row, relying on the
 // (player_id, rating_type, date(captured_at)) unique index to make a
 // same-day retry a no-op rather than a duplicate row.
-func (s *Server) insertSnapshot(playerID int64, ratingType string, value int) string {
+func (s *Server) insertSnapshot(playerID int64, rt ratingType, value int) string {
 	res, err := s.db.Exec(`
 		INSERT OR IGNORE INTO rating_snapshots (player_id, rating_type, value)
 		VALUES (?, ?, ?)
-	`, playerID, ratingType, value)
+	`, playerID, rt, value)
 	if err != nil {
 		return statusError
 	}
