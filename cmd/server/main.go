@@ -65,14 +65,18 @@ func main() {
 // number there's no club to sync against, so the job is skipped entirely.
 func startClubRosterSync(db *sqlx.DB) {
 	clubNumber := os.Getenv("CLUB_NUMBER")
-	if clubNumber == "" {
+	organization := os.Getenv("CLUB_ORGANIZATION")
+
+	if clubNumber == "" && organization == "" {
 		log.Print("CLUB_NUMBER not set, skipping club roster sync")
 		return
 	}
-
-	organization := os.Getenv("CLUB_ORGANIZATION")
+	if clubNumber == "" {
+		log.Print("WARNING: CLUB_ORGANIZATION is set but CLUB_NUMBER is not; skipping club roster sync. Set both to enable it.")
+		return
+	}
 	if organization == "" {
-		log.Print("CLUB_ORGANIZATION not set, skipping club roster sync")
+		log.Print("WARNING: CLUB_NUMBER is set but CLUB_ORGANIZATION is not; skipping club roster sync. Set both to enable it.")
 		return
 	}
 

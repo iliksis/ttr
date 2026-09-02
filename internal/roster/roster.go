@@ -6,6 +6,7 @@ package roster
 import (
 	"fmt"
 
+	"github.com/iliksis/ttr/internal/database"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,14 +26,7 @@ var Manual = []ManualPlayer{}
 // in place rather than duplicated.
 func Seed(db *sqlx.DB, players []ManualPlayer) error {
 	for _, p := range players {
-		_, err := db.Exec(`
-			INSERT INTO players (nuid, first_name, last_name)
-			VALUES (?, ?, ?)
-			ON CONFLICT(nuid) DO UPDATE SET
-				first_name = excluded.first_name,
-				last_name = excluded.last_name
-		`, p.NUID, p.FirstName, p.LastName)
-		if err != nil {
+		if err := database.UpsertPlayer(db, "nuid", p.NUID, p.FirstName, p.LastName); err != nil {
 			return fmt.Errorf("seed player %s: %w", p.NUID, err)
 		}
 	}

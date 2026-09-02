@@ -3,6 +3,7 @@ package clubroster_test
 import (
 	"context"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/iliksis/ttr/internal/clubroster"
@@ -11,20 +12,28 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// fakeClient's FetchTeamPlayers is called concurrently by Sync, so its call
+// counters need a mutex.
 type fakeClient struct {
-	teams        []mytt.Team
-	teamPlayers  map[string][]mytt.Player
+	teams       []mytt.Team
+	teamPlayers map[string][]mytt.Player
+
+	mu           sync.Mutex
 	teamsCalls   int
 	playersCalls int
 }
 
 func (f *fakeClient) FetchTeams(ctx context.Context, clubNumber, organization string) ([]mytt.Team, error) {
+	f.mu.Lock()
 	f.teamsCalls++
+	f.mu.Unlock()
 	return f.teams, nil
 }
 
 func (f *fakeClient) FetchTeamPlayers(ctx context.Context, teamID string) ([]mytt.Player, error) {
+	f.mu.Lock()
 	f.playersCalls++
+	f.mu.Unlock()
 	return f.teamPlayers[teamID], nil
 }
 

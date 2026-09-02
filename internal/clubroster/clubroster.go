@@ -6,9 +6,12 @@ package clubroster
 import (
 	"context"
 	"fmt"
+	"log"
 
+	"github.com/iliksis/ttr/internal/database"
 	"github.com/iliksis/ttr/internal/mytt"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/sync/errgroup"
 )
 
 // teamsPlayersFetcher is the subset of *mytt.Client the Sync job needs,
@@ -17,6 +20,11 @@ type teamsPlayersFetcher interface {
 	FetchTeams(ctx context.Context, clubNumber, organization string) ([]mytt.Team, error)
 	FetchTeamPlayers(ctx context.Context, teamID string) ([]mytt.Player, error)
 }
+
+// maxConcurrentTeamFetches bounds how many FetchTeamPlayers calls run at
+// once, so a club with many teams doesn't open dozens of simultaneous
+// connections to mytischtennis.de.
+const maxConcurrentTeamFetches = 5
 
 // Sync fetches every team under clubNumber/organization and every player on
 // each of those teams, unconditionally, then upserts each player into the
@@ -29,35 +37,38 @@ func Sync(ctx context.Context, db *sqlx.DB, client teamsPlayersFetcher, clubNumb
 		return fmt.Errorf("fetch teams: %w", err)
 	}
 
-	for _, team := range teams {
-		players, err := client.FetchTeamPlayers(ctx, team.TeamID)
-		if err != nil {
-			return fmt.Errorf("fetch team %s players: %w", team.TeamID, err)
-		}
+	teamPlayers := make([][]mytt.Player, len(teams))
 
-		for _, p := range players {
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentTeamFetches)
+	for i, team := range teams {
+		g.Go(func() error {
+			players, err := client.FetchTeamPlayers(gctx, team.TeamID)
+			if err != nil {
+				return fmt.Errorf("fetch team %s players: %w", team.TeamID, err)
+			}
+			teamPlayers[i] = players
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	for i, team := range teams {
+		for _, p := range teamPlayers[i] {
 			// An empty internal_id would collide with every other such
 			// entry under the unique index, overwriting an unrelated
 			// player's name; skip rather than risk that.
 			if p.InternalID == "" {
+				log.Printf("club roster sync: skipping player with empty internal_id (team %s, %s %s)", team.TeamID, p.FirstName, p.LastName)
 				continue
 			}
-			if err := upsertPlayer(db, p); err != nil {
+			if err := database.UpsertPlayer(db, "internal_id", p.InternalID, p.FirstName, p.LastName); err != nil {
 				return fmt.Errorf("upsert player %s: %w", p.InternalID, err)
 			}
 		}
 	}
 
 	return nil
-}
-
-func upsertPlayer(db *sqlx.DB, p mytt.Player) error {
-	_, err := db.Exec(`
-		INSERT INTO players (internal_id, first_name, last_name)
-		VALUES (?, ?, ?)
-		ON CONFLICT(internal_id) DO UPDATE SET
-			first_name = excluded.first_name,
-			last_name = excluded.last_name
-	`, p.InternalID, p.FirstName, p.LastName)
-	return err
 }
