@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "TTR Capture",
+  "version": "0.1.0",
+  "description": "Captures TTR/QTTR Rating snapshots while browsing mytischtennis.de and reports them to the TTR Server.",
+  "browser_specific_settings": {
+    "gecko": { "id": "ttr-capture@iliksis.dev" }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.mytischtennis.de/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage"],
+  "host_permissions": [
+    "*://*.mytischtennis.de/*",
+    "http://localhost:8080/*"
+  ]
+}

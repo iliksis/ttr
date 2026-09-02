@@ -2,3 +2,5 @@
 *.db-journal
 /bin/
 .env
+/extension/node_modules/
+/extension/dist/
