@@ -31,14 +31,14 @@ func (s *Server) handleRoster(w http.ResponseWriter, r *http.Request) {
 }
 
 type playerSummary struct {
-	ID           int64          `json:"id" db:"id"`
-	NUID         *string        `json:"nuid" db:"nuid"`
-	FirstName    string         `json:"first_name" db:"first_name"`
-	LastName     string         `json:"last_name" db:"last_name"`
-	LatestTTR    *int           `json:"latest_ttr" db:"latest_ttr"`
-	LatestTTRAt  *string        `json:"latest_ttr_at" db:"latest_ttr_at"`
-	LatestQTTR   *int           `json:"latest_qttr" db:"latest_qttr"`
-	LatestQTTRAt *string        `json:"latest_qttr_at" db:"latest_qttr_at"`
+	ID           int64   `json:"id" db:"id"`
+	NUID         *string `json:"nuid" db:"nuid"`
+	FirstName    string  `json:"first_name" db:"first_name"`
+	LastName     string  `json:"last_name" db:"last_name"`
+	LatestTTR    *int    `json:"latest_ttr" db:"latest_ttr"`
+	LatestTTRAt  *string `json:"latest_ttr_at" db:"latest_ttr_at"`
+	LatestQTTR   *int    `json:"latest_qttr" db:"latest_qttr"`
+	LatestQTTRAt *string `json:"latest_qttr_at" db:"latest_qttr_at"`
 }
 
 // handlePlayers returns every Player along with their most recent Rating
