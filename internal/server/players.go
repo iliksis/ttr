@@ -83,8 +83,8 @@ func (s *Server) handlePlayerHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ratingType := r.URL.Query().Get("rating_type")
-	if ratingType != ttrRatingType && ratingType != qttrRatingType {
+	rt, ok := parseRatingType(r.URL.Query().Get("rating_type"))
+	if !ok {
 		writeJSONError(w, http.StatusBadRequest, "rating_type must be TTR or QTTR")
 		return
 	}
@@ -103,7 +103,7 @@ func (s *Server) handlePlayerHistory(w http.ResponseWriter, r *http.Request) {
 		SELECT value, captured_at FROM rating_snapshots
 		WHERE player_id = ? AND rating_type = ?
 		ORDER BY captured_at ASC
-	`, id, ratingType)
+	`, id, rt)
 	if !ok {
 		return
 	}
