@@ -26,6 +26,8 @@ Config is read from the environment (`.env` is loaded automatically if present; 
 | `TTR_DB_PATH`     | `/data/ttr.db` | Path to the SQLite database file      |
 | `TTR_ADDR`        | `:8080`        | Address the HTTP server listens on    |
 | `INGESTION_KEY`   | —              | Static key for Ingestion requests (not yet enforced) |
+| `CLUB_NUMBER`      | —              | Club number to fetch teams/players for; club roster fetch is skipped if unset |
+| `CLUB_ORGANIZATION`| —              | Organization the club number belongs to (e.g. `WTTV`); club roster fetch is skipped if unset |
 
 Check it's up:
 
