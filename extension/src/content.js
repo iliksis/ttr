@@ -3,7 +3,7 @@
 // Capture and reports the batch back. Kept thin — behavior lives in
 // content-core.js.
 import browser from "webextension-polyfill";
-import { captureRoster, fetchHistory, AuthError } from "./content-core.js";
+import { captureRoster, fetchHistory } from "./content-core.js";
 
 async function run() {
   const pingResponse = await browser.runtime.sendMessage({ type: "PING" });
@@ -11,21 +11,19 @@ async function run() {
     return;
   }
 
-  try {
-    const results = await captureRoster(
-      {
-        fetchHistory: (nuid) => fetchHistory(fetch, nuid),
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      },
-      pingResponse.nuids,
-    );
+  const { results, authFailed } = await captureRoster(
+    {
+      fetchHistory: (nuid) => fetchHistory(fetch, nuid),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    },
+    pingResponse.nuids,
+  );
+
+  if (authFailed) {
+    console.warn("[ttr] capture stopped early: auth failure fetching history");
+  }
+  if (results.length > 0) {
     await browser.runtime.sendMessage({ type: "BATCH", results });
-  } catch (err) {
-    if (err instanceof AuthError) {
-      console.warn("[ttr] capture aborted:", err.message);
-      return;
-    }
-    throw err;
   }
 }
 

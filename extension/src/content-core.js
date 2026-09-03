@@ -5,11 +5,6 @@
 
 export const HISTORY_SPACING_MS = 250;
 
-// AuthError signals mytischtennis.de rejected the request for the current
-// session cookie. mytischtennis.de reports this as HTTP 200 with an error
-// object in the body rather than a 401/403, so callers must check the body.
-export class AuthError extends Error {}
-
 // isAuthFailure reports whether a decoded history response is
 // mytischtennis.de's 200-with-error-body auth failure shape, rather than a
 // real history payload.
@@ -28,10 +23,12 @@ function hasRatings(historyResponse) {
 }
 
 // captureRoster fetches history for every nuid in the roster, sequentially,
-// waiting HISTORY_SPACING_MS between calls (not before the first), and
-// returns the batched results once every call has settled. It aborts
-// immediately on an auth failure, since one bad session cookie invalidates
-// every remaining call in the run.
+// waiting HISTORY_SPACING_MS between calls (not before the first). It stops
+// making further calls on an auth failure, since one bad session cookie
+// invalidates every remaining call in the run, but still returns whatever
+// Ratings were already captured before the failure rather than discarding
+// them — a run that fails partway through should still report the Players
+// it got to, not report nothing.
 //
 // deps.fetchHistory: (nuid) => Promise<object>
 // deps.sleep: (ms) => Promise<void>
@@ -46,7 +43,7 @@ export async function captureRoster(deps, nuids) {
     const data = await deps.fetchHistory(nuid);
 
     if (isAuthFailure(data)) {
-      throw new AuthError(`auth failure fetching history for ${nuid}`);
+      return { results, authFailed: true };
     }
     if (!hasRatings(data)) {
       continue;
@@ -54,7 +51,7 @@ export async function captureRoster(deps, nuids) {
 
     results.push({ nuid, ttr: data.ttr, qttr: data.vq_ttr });
   }
-  return results;
+  return { results, authFailed: false };
 }
 
 // fetchHistory calls mytischtennis.de's per-Player history endpoint, riding

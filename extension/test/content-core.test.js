@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  AuthError,
   HISTORY_SPACING_MS,
   captureRoster,
   isAuthFailure,
@@ -27,12 +26,13 @@ describe("captureRoster", () => {
     );
     const sleep = vi.fn(async () => {});
 
-    const results = await captureRoster({ fetchHistory, sleep }, ["NU1", "NU2"]);
+    const { results, authFailed } = await captureRoster({ fetchHistory, sleep }, ["NU1", "NU2"]);
 
     expect(results).toEqual([
       { nuid: "NU1", ttr: 1500, qttr: 1510 },
       { nuid: "NU2", ttr: 1600, qttr: 1610 },
     ]);
+    expect(authFailed).toBe(false);
     expect(fetchHistory).toHaveBeenCalledTimes(2);
   });
 
@@ -51,12 +51,12 @@ describe("captureRoster", () => {
     const sleep = vi.fn(async () => {});
     const nuids = ["NU1", "NU2", "NU3"];
 
-    const results = await captureRoster({ fetchHistory, sleep }, nuids);
+    const { results } = await captureRoster({ fetchHistory, sleep }, nuids);
 
     expect(results).toHaveLength(3);
   });
 
-  it("aborts the whole run on an auth failure instead of misreporting success", async () => {
+  it("stops on an auth failure without misreporting success, but keeps Ratings already captured", async () => {
     const fetchHistory = vi.fn(async (nuid) =>
       nuid === "NU2"
         ? { ttr: null, error: { type: "PT403", message: "Not authorized" } }
@@ -64,9 +64,14 @@ describe("captureRoster", () => {
     );
     const sleep = vi.fn(async () => {});
 
-    await expect(
-      captureRoster({ fetchHistory, sleep }, ["NU1", "NU2", "NU3"]),
-    ).rejects.toBeInstanceOf(AuthError);
+    const { results, authFailed } = await captureRoster(
+      { fetchHistory, sleep },
+      ["NU1", "NU2", "NU3"],
+    );
+
+    expect(authFailed).toBe(true);
+    expect(results).toEqual([{ nuid: "NU1", ttr: 1500, qttr: 1510 }]);
+    expect(fetchHistory).toHaveBeenCalledTimes(2);
   });
 
   it("skips a Player whose response is missing a Rating field, without aborting the run", async () => {
@@ -75,7 +80,7 @@ describe("captureRoster", () => {
     );
     const sleep = vi.fn(async () => {});
 
-    const results = await captureRoster({ fetchHistory, sleep }, ["NU1", "NU2", "NU3"]);
+    const { results } = await captureRoster({ fetchHistory, sleep }, ["NU1", "NU2", "NU3"]);
 
     expect(results.map((r) => r.nuid)).toEqual(["NU1", "NU3"]);
   });
@@ -84,9 +89,10 @@ describe("captureRoster", () => {
     const fetchHistory = vi.fn();
     const sleep = vi.fn();
 
-    const results = await captureRoster({ fetchHistory, sleep }, []);
+    const { results, authFailed } = await captureRoster({ fetchHistory, sleep }, []);
 
     expect(results).toEqual([]);
+    expect(authFailed).toBe(false);
     expect(fetchHistory).not.toHaveBeenCalled();
     expect(sleep).not.toHaveBeenCalled();
   });
