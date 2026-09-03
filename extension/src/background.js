@@ -26,7 +26,7 @@ browser.runtime.onMessage.addListener((message) => {
 
   if (message?.type === "BATCH") {
     return postIngestBatch(fetch, SERVER_URL, INGESTION_KEY, message.results)
-      .then(() => ({ ok: true }))
+      .then((response) => ({ ok: true, results: response.results }))
       .catch((err) => ({ ok: false, error: String(err) }));
   }
 

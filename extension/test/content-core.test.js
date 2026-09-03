@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   HISTORY_SPACING_MS,
   captureRoster,
+  fetchHistory,
   isAuthFailure,
 } from "../src/content-core.js";
 
@@ -16,6 +17,24 @@ describe("isAuthFailure", () => {
 
   it("treats a normal history payload as not an auth failure", () => {
     expect(isAuthFailure(historyOf(1500, 1510))).toBe(false);
+  });
+});
+
+describe("fetchHistory", () => {
+  it("fetches mytischtennis.de's per-Player history endpoint with the page's session cookie", async () => {
+    const fetchImpl = vi.fn(async (url, init) => {
+      expect(url).toBe("https://www.mytischtennis.de/api/ttr/history/NU1");
+      expect(init).toEqual({ credentials: "include" });
+      return { ok: true, json: async () => historyOf(1500, 1510) };
+    });
+
+    await expect(fetchHistory(fetchImpl, "NU1")).resolves.toEqual(historyOf(1500, 1510));
+  });
+
+  it("throws on a non-OK response", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 502 }));
+
+    await expect(fetchHistory(fetchImpl, "NU1")).rejects.toThrow("history fetch failed: 502");
   });
 });
 

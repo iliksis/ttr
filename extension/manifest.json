@@ -19,7 +19,6 @@
   ],
   "permissions": ["storage"],
   "host_permissions": [
-    "*://*.mytischtennis.de/*",
-    "http://localhost:8080/*"
+    "*://*.mytischtennis.de/*"
   ]
 }

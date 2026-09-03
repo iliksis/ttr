@@ -17,8 +17,8 @@ export function isAuthFailure(historyResponse) {
 // since sending a bogus value would misreport a Rating snapshot.
 function hasRatings(historyResponse) {
   return (
-    typeof historyResponse?.ttr === "number" &&
-    typeof historyResponse?.vq_ttr === "number"
+    Number.isInteger(historyResponse?.ttr) &&
+    Number.isInteger(historyResponse?.vq_ttr)
   );
 }
 
@@ -61,5 +61,8 @@ export async function fetchHistory(fetchImpl, nuid) {
     `https://www.mytischtennis.de/api/ttr/history/${nuid}`,
     { credentials: "include" },
   );
+  if (!res.ok) {
+    throw new Error(`history fetch failed: ${res.status}`);
+  }
   return res.json();
 }

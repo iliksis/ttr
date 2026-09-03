@@ -22,7 +22,19 @@ export function todayString(date) {
 // deps.storage: { get(key): Promise<string|undefined>, set(key, value): Promise<void> }
 // deps.fetchRoster: () => Promise<string[]>
 // deps.now: () => Date
-export async function handlePing(deps) {
+//
+// handlePingQueue serializes concurrent handlePing calls (e.g. PINGs from
+// multiple tabs firing close together) so the check-then-write against
+// storage can't race: only one call's read-then-write pair runs at a time.
+let handlePingQueue = Promise.resolve();
+
+export function handlePing(deps) {
+  const result = handlePingQueue.then(() => handlePingLocked(deps));
+  handlePingQueue = result.catch(() => {});
+  return result;
+}
+
+async function handlePingLocked(deps) {
   const today = todayString(deps.now());
   const lastRun = await deps.storage.get(LAST_CAPTURE_DATE_KEY);
   if (lastRun === today) {

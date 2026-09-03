@@ -23,7 +23,10 @@ async function run() {
     console.warn("[ttr] capture stopped early: auth failure fetching history");
   }
   if (results.length > 0) {
-    await browser.runtime.sendMessage({ type: "BATCH", results });
+    const batchResponse = await browser.runtime.sendMessage({ type: "BATCH", results });
+    if (!batchResponse?.ok) {
+      console.warn("[ttr] capture batch failed to send:", batchResponse?.error);
+    }
   }
 }
 
