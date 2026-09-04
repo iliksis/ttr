@@ -1,0 +1,18 @@
+{
+  "name": "ttr-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capture Extension: reports TTR/QTTR Rating snapshots from mytischtennis.de to the TTR Server.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  }
+}
